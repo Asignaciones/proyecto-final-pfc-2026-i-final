@@ -1,127 +1,247 @@
-# Informe de proceso Algoritmo Factorial con Recursión de Cola
+# Informe de Proceso
 
-## Definición del Algoritmo
-
-```Scala
-def factorial(n: Int): BigInt = {
-  @annotation.tailrec
-  def loop(x: Int, acumulador: BigInt): BigInt = {
-    if (x <= 1) acumulador
-    else loop(x - 1, acumulador * x)
-  }
-  loop(n, 1)
-}
-```
-
-- La función `factorial` calcula el factorial de un número `n` utilizando **recursión de cola**.
-- La función interna `loop` es la que hace la recursión:
-  - Recibe dos parámetros:
-    - `x`: el valor actual decreciente hasta llegar a 1.
-    - `acumulador`: donde se guarda el resultado parcial en cada paso.
-
-- El decorador `@annotation.tailrec` obliga a que la función sea optimizada como recursión de cola, es decir, **no se acumulan llamados en la pila**.
-
-## Explicación paso a paso
-
-### Caso base
-
-```Scala
-if (x <= 1) acumulador
-```
-
-Cuando `x` llega a `1`, la función retorna directamente el valor acumulado, evitando más llamadas.
-
-### Caso recursivo
-
-```Scala
-loop(x - 1, acumulador * x)
-```
-
-En cada llamada:
-
-- Se reduce el valor de `x` en 1.
-- Se multiplica el acumulador por `x` y se pasa a la siguiente iteración.
-- Como es recursión de cola, la llamada recursiva es la **última instrucción** en ejecutarse, lo que permite a Scala optimizar la pila.
+**Fundamentos de Programación Funcional y Concurrente**  
+**Integrantes:** [completar]
 
 ---
 
-## Llamados de pila en recursión de cola
+## 1. `generarAsignaciones`
 
-Ejemplo:
+### Definición
 
-```Scala
-factorial(5)
+```scala
+def generarAsignaciones(n: Int, m: Int): Vector[Asignacion] =
+  if (n == 0) Vector(Vector.empty)
+  else
+    generarAsignaciones(n - 1, m).flatMap(asig =>
+      (0 until m).toVector.map(j => asig :+ j)
+    )
 ```
 
-### Paso 1: Llamada inicial
+La función es **recursiva lineal** sobre `n`: reduce el problema de tamaño `n` al de tamaño `n-1` y luego prefija cada valor posible de aula a cada asignación ya generada.
 
-```Scala
-loop(5, 1)
+### Explicación paso a paso
+
+**Caso base:** `n = 0`
+
+No hay cursos que asignar: se devuelve un vector con una única asignación vacía.
+
+```scala
+generarAsignaciones(0, 2) → Vector(Vector())
 ```
 
-### Paso 2: Primera iteración
+**Caso recursivo:** `n = k+1`
 
-```Scala
-loop(4, 5)   // acumulador = 1 * 5
+Se generan recursivamente todas las asignaciones de `k` cursos y luego se añade al final de cada una cada uno de los `m` valores posibles de aula.
+
+```scala
+generarAsignaciones(n - 1, m).flatMap(asig =>
+  (0 until m).toVector.map(j => asig :+ j)
+)
 ```
 
-### Paso 3: Segunda iteración
+### Ejemplo: `generarAsignaciones(2, 2)`
 
-```Scala
-loop(3, 20)  // acumulador = 5 * 4
+#### Paso 1: llamada inicial
+
+```scala
+generarAsignaciones(2, 2)
 ```
 
-### Paso 4: Tercera iteración
+#### Paso 2: llamada recursiva
 
-```Scala
-loop(2, 60)  // acumulador = 20 * 3
+```scala
+generarAsignaciones(1, 2)
 ```
 
-### Paso 5: Cuarta iteración
+#### Paso 3: llamada recursiva
 
-```Scala
-loop(1, 120) // acumulador = 60 * 2
+```scala
+generarAsignaciones(0, 2)
+→ Vector(Vector())   // caso base
 ```
 
-### Paso 6: Caso base
+#### Paso 4: despliegue n=1
 
-```Scala
-return 120
+```scala
+Vector(Vector()).flatMap(asig => Vector(asig :+ 0, asig :+ 1))
+→ Vector(Vector(0), Vector(1))
 ```
 
----
+#### Paso 5: despliegue n=2
 
-## Diferencia con recursión normal
-
-- En **recursión normal** cada llamada queda en la pila esperando a que termine la siguiente, lo que puede causar desbordamiento si `n` es muy grande.
-- En **recursión de cola**, el compilador transforma el proceso en un **bucle optimizado**, por lo que no se guarda cada llamada en la pila y el algoritmo puede ejecutarse para valores muy grandes sin problema.
-
----
-
-## Ejemplo de uso
-
-```Scala
-val resultado = factorial(5)
-println(resultado)  // 120
+```scala
+Vector(Vector(0), Vector(1)).flatMap(asig => Vector(asig :+ 0, asig :+ 1))
+→ Vector(Vector(0,0), Vector(0,1), Vector(1,0), Vector(1,1))
 ```
 
-El resultado de `factorial(5)` es `120`.
-
-## Diagrama de llamados de pila con recursión de cola
+### Diagrama de llamados
 
 ```mermaid
 sequenceDiagram
-    participant Main as factorial(5)
-    participant L1 as loop(5, 1)
-    participant L2 as loop(4, 5)
-    participant L3 as loop(3, 20)
-    participant L4 as loop(2, 60)
-    participant L5 as loop(1, 120)
+    participant G2 as generarAsignaciones(2,2)
+    participant G1 as generarAsignaciones(1,2)
+    participant G0 as generarAsignaciones(0,2)
 
-    Main->>L1: llamada inicial
-    L1->>L2: tail call con (4, 5)
-    L2->>L3: tail call con (3, 20)
-    L3->>L4: tail call con (2, 60)
-    L4->>L5: tail call con (1, 120)
-    L5-->>Main: return 120
+    G2->>G1: llamada recursiva
+    G1->>G0: llamada recursiva
+    G0-->>G1: Vector(Vector())
+    G1-->>G2: Vector(Vector(0), Vector(1))
+    G2-->>G2: Vector(Vector(0,0), Vector(0,1), Vector(1,0), Vector(1,1))
+```
+
+---
+
+## 2. `choques`
+
+### Definición
+
+```scala
+def choques(cursos: Cursos, a: Asignacion): Int =
+  cursos.indices.toVector.flatMap { i =>
+    cursos.indices.toVector
+      .filter(j => j > i && a(i) >= 0 && a(j) >= 0 && a(i) == a(j))
+      .map(j => if (solapan(cursos(i), cursos(j))) 1 else 0)
+  }.sum
+```
+
+La función usa funciones de alto orden (`flatMap`, `filter`, `map`, `sum`) para recorrer todos los pares `(i, j)` con `i < j`. Internamente, `flatMap` aplica recursión lineal sobre el vector de índices.
+
+### Ejemplo: `choques(c1, Vector(0, 0, 1))`
+
+`c1 = [M01(4,8,25), M02(6,10,30), M03(12,16,20)]`, `a = [0, 0, 1]`
+
+#### Paso 1: índice `i = 0`
+
+Candidatos `j > 0` con `a(j) == a(0) = 0`: solo `j = 1` (pues `a(2) = 1 ≠ 0`).
+
+```
+solapan(M01[4,8), M02[6,10)) → 4 < 10 && 6 < 8 → true → 1
+```
+
+#### Paso 2: índice `i = 1`
+
+Candidatos `j > 1` con `a(j) == a(1) = 0`: ninguno (`a(2) = 1`).
+
+```
+→ []
+```
+
+#### Paso 3: índice `i = 2`
+
+No hay `j > 2`.
+
+```
+→ []
+```
+
+#### Paso 4: suma
+
+```
+sum([1]) = 1
+```
+
+### Diagrama de llamados (recursión interna de `flatMap`)
+
+```mermaid
+sequenceDiagram
+    participant F as flatMap([0,1,2])
+    participant I0 as proceso i=0
+    participant I1 as proceso i=1
+    participant I2 as proceso i=2
+
+    F->>I0: evalúa i=0
+    I0-->>F: [1]
+    F->>I1: evalúa i=1
+    I1-->>F: []
+    F->>I2: evalúa i=2
+    I2-->>F: []
+    F-->>F: sum([1]) = 1
+```
+
+---
+
+## 3. `asignacionOptima`
+
+### Definición
+
+```scala
+def asignacionOptima(cursos: Cursos, aulas: Aulas, d: Distancias,
+                     w: Pesos): (Asignacion, Int) =
+  generarAsignaciones(cursos.length, aulas.length)
+    .map(a => (a, costoAsignacion(cursos, aulas, d, a, w)))
+    .minBy(_._2)
+```
+
+No es recursiva directamente: delega la generación del espacio de búsqueda a `generarAsignaciones` (recursiva, demostrada arriba) y luego aplica `map` + `minBy` sobre el vector resultante.
+
+### Ejemplo: `asignacionOptima(c1, a1, d1, w)`
+
+`c1` tiene 3 cursos, `a1` tiene 2 aulas → espacio de búsqueda: $2^3 = 8$ candidatas.
+
+#### Paso 1: generar candidatas
+
+```scala
+generarAsignaciones(3, 2)
+→ Vector(
+    Vector(0,0,0), Vector(0,0,1), Vector(0,1,0), Vector(0,1,1),
+    Vector(1,0,0), Vector(1,0,1), Vector(1,1,0), Vector(1,1,1)
+  )
+```
+
+#### Paso 2: evaluar costos
+
+```
+map(a => (a, costoAsignacion(...)))
+→ [([0,0,0], CT0), ([0,0,1], 1031), ([0,1,0], 37), ..., ([1,1,1], CTk)]
+```
+
+#### Paso 3: seleccionar mínimo
+
+```
+minBy(_._2) → asignación con menor costo
+```
+
+### Diagrama de llamados
+
+```mermaid
+sequenceDiagram
+    participant OPT as asignacionOptima
+    participant GEN as generarAsignaciones(3,2)
+    participant MAP as map costoAsignacion
+    participant MIN as minBy
+
+    OPT->>GEN: generar 8 candidatas
+    GEN-->>OPT: Vector[Asignacion] (8 elementos)
+    OPT->>MAP: evaluar costo de cada una
+    MAP-->>OPT: Vector[(Asignacion, Int)]
+    OPT->>MIN: seleccionar mínimo
+    MIN-->>OPT: (asignacionOptima, costoMinimo)
+```
+
+---
+
+## 4. Funciones auxiliares no recursivas
+
+Las funciones `solapan`, `capacidadFallida`, `desperdicio`, `movilidad` y `costoAsignacion` no son recursivas explícitas: delegan la recursión en las operaciones estándar de Scala sobre colecciones (`filter`, `map`, `sum`, `sortBy`, `zip`).
+
+### Enfoque de funciones de alto orden
+
+En lugar de escribir recursión manual, se encadenan transformaciones sobre colecciones inmutables:
+
+```
+índices → filter (condición) → map (transformación) → sum / minBy
+```
+
+Este enfoque es declarativo: se describe **qué** calcular, no **cómo** iterarlo.
+
+### Ejemplo: `movilidad(c1, a1, d1, Vector(0,1,0))`
+
+```
+índices [0,1,2]
+  → filter a(i)>=0     → [0, 1, 2]
+  → sortBy iniCurso    → [0(4), 1(6), 2(12)]  // M01, M02, M03
+  → zip con tail       → [(0,1), (1,2)]
+  → map D[a(i)][a(j)]  → [D[0][1], D[1][0]] = [3, 3]
+  → sum                → 6
 ```
