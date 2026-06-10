@@ -1,191 +1,220 @@
-# Ejemplo informe de corrección
+# Informe de Corrección
 
 **Fundamentos de Programación Funcional y Concurrente**  
-Documento realizado por el docente Juan Francisco Díaz.
+**Integrantes:** [completar]
 
 ---
 
-## Argumentación de corrección de programas
+## Argumentación de corrección
 
-### Argumentando sobre corrección de programas recursivos
+### `solapan`
 
-Sea $f : A \to B$ una función, y $A$ un conjunto definido recursivamente (recordar definición de matemáticas discretas I), como por ejemplo los naturales o las listas.
+**Especificación:**
 
-Sea $P_f$ un programa recursivo (lineal o en árbol) desarrollado en Scala (o en cualquier lenguaje de programación) hecho para calcular $f$:
+$$\text{solapan}(c_1, c_2) = \text{ini}_{c_1} < \text{fin}_{c_2} \;\land\; \text{ini}_{c_2} < \text{fin}_{c_1}$$
+
+**Implementación:**
 
 ```scala
-def Pf(a: A): B = { // Pf recibe a de tipo A, y devuelve f(a) de tipo B
-  ...
-}
+def solapan(c1: Curso, c2: Curso): Boolean =
+  iniCurso(c1) < finCurso(c2) && iniCurso(c2) < finCurso(c1)
 ```
 
-¿Cómo argumentar que \$P_f(a)\$ siempre devuelve \$f(a)\$ como respuesta? Es decir, ¿cómo argumentar que \$P_f\$ es correcto con respecto a su especificación?
-
-La respuesta es sencilla, demostrando el siguiente teorema:
-
-$$
-\forall a \in A : P_f(a) == f(a)
-$$
-
-Cuando uno tiene que demostrar que algo se cumple para todos los elementos de un conjunto definido recursivamente, es natural usar **inducción estructural**.
-
-En términos prácticos, esto significa demostrar que:
-
-- Para cada valor básico \$a\$ de \$A\$, se tiene que \$P_f(a) == f(a)\$.
-- Para cada valor \$a \in A\$ construido recursivamente a partir de otro(s) valor(es) \$a' \in A\$, se tiene que \$P_f(a') == f(a') \rightarrow P_f(a) == f(a)\$ (hipótesis de inducción).
+**Argumentación:** Dos intervalos semiabiertos $[a, b)$ y $[c, d)$ se intersectan si y solo si $a < d \land c < b$. La implementación reproduce fielmente esta condición. ✓
 
 ---
 
-#### Ejemplo: Factorial Recursivo
+### `choques`
 
-Sea \$f : \mathbb{N} \to \mathbb{N}\$ la función que calcula el factorial de un número natural, \$f(n) = n!\$.
+**Especificación:**
 
-Programa en Scala:
+$$\text{CH}^\alpha_C = |\{(i,j) \mid 0 \leq i < j < n,\; \alpha_i = \alpha_j \geq 0,\; c_i \text{ solapa con } c_j\}|$$
+
+**Implementación:**
 
 ```scala
-def Pf(n: Int): Int = {
-  if (n == 0) 1 else n * Pf(n - 1)
-}
+def choques(cursos: Cursos, a: Asignacion): Int =
+  cursos.indices.toVector.flatMap { i =>
+    cursos.indices.toVector
+      .filter(j => j > i && a(i) >= 0 && a(j) >= 0 && a(i) == a(j))
+      .map(j => if (solapan(cursos(i), cursos(j))) 1 else 0)
+  }.sum
 ```
 
-Queremos demostrar que:
+**Argumentación:** Para cada $i \in [0, n)$, se filtran los $j > i$ con $\alpha_i = \alpha_j \geq 0$ y se mapea a 1 si $\text{solapan}(c_i, c_j)$, a 0 si no. La suma final es exactamente:
 
-$$
-\forall n \in \mathbb{N} : P_f(n) == n!
-$$
+$$\sum_{i=0}^{n-1} \sum_{\substack{j = i+1 \\ \alpha_j = \alpha_i \geq 0}}^{n-1} [\text{solapan}(c_i, c_j)]$$
 
-- **Caso base**: \$n = 0\$
-
-$$
-P_f(0) \to 1 \quad \land \quad f(0) = 0! = 1
-$$
-
-Entonces \$P_f(0) == f(0)\$.
-
-- **Caso inductivo**: \$n = k+1\$, \$k \geq 0\$.
-
-$$
-P_f(k+1) \to (k+1) \cdot P_f(k)
-$$
-
-Usando la hipótesis de inducción:
-
-$$
-\to (k+1) \cdot k! = (k+1)!
-$$
-
-Por lo tanto, \$P_f(k+1) == f(k+1)\$.
-
-**Conclusión**: \$\forall n \in \mathbb{N} : P_f(n) == n!\$
+que coincide con la especificación. ✓
 
 ---
 
-#### Ejemplo: El máximo de una lista
+### `capacidadFallida`
 
-Sea \$f : \text{List}\[\mathbb{N}] \to \mathbb{N}\$ la función que calcula el máximo de una lista no vacía.
+**Especificación:**
 
-Programa en Scala:
+$$\text{CF}^\alpha_{C,A} = |\{i \mid \alpha_i \geq 0,\; \text{cap}^A_{\alpha_i} < \text{est}^C_i\}|$$
+
+**Implementación:**
 
 ```scala
-def maxLin(l: List[Int]): Int = {
-  if (l.tail.isEmpty) l.head
-  else math.max(maxLin(l.tail), l.head)
-}
+def capacidadFallida(cursos: Cursos, aulas: Aulas, a: Asignacion): Int =
+  cursos.indices.toVector
+    .filter(i => a(i) >= 0 && capAula(aulas(a(i))) < estCurso(cursos(i)))
+    .length
 ```
 
-Queremos demostrar que:
-
-$$
-\forall n \in \mathbb{N} \setminus \{0\} :
-P_f(\text{List}(a_1, \ldots, a_n)) == f(\text{List}(a_1, \ldots, a_n))
-$$
-
-- **Caso base**: \$n=1\$.
-
-$$
-P_f(\text{List}(a_1)) \to a_1 \quad \land \quad f(\text{List}(a_1)) = a_1
-$$
-
-- **Caso inductivo**: \$n=k+1\$.
-
-$$
-P_f(L) \to \text{math.max}(P_f(\text{List}(a_2, \ldots, a_{k+1})), a_1)
-$$
-
-Dependiendo del mayor entre \$a_1\$ y \$b\$ (el máximo del resto de la lista), se cumple que \$P_f(L) == f(L)\$.
-
-**Conclusión**:
-
-$$
-\forall n \in \mathbb{N} \setminus \{0\} : P_f(\text{List}(a_1, \ldots, a_n)) == f(\text{List}(a_1, \ldots, a_n))
-$$
+**Argumentación:** Se filtran exactamente los índices $i$ donde $\alpha_i \geq 0$ y $\text{cap}_{A[\alpha_i]} < \text{est}_{c_i}$, y se cuenta la longitud. Coincide con la especificación. ✓
 
 ---
 
-### Argumentando sobre corrección de programas iterativos
+### `desperdicio`
 
-Para argumentar la corrección de programas iterativos, se debe formalizar cómo es la iteración:
+**Especificación:**
 
-- Representación de un estado \$s\$.
-- Estado inicial \$s_0\$.
-- Estado final \$s_f\$.
-- Invariante de la iteración \$\text{Inv}(s)\$.
-- Transformación de estados \$\text{transformar}(s)\$.
+$$\text{DE}^\alpha_{C,A} = \sum_{\substack{i=0 \\ \alpha_i \geq 0}}^{n-1} \max\!\left(\text{cap}^A_{\alpha_i} - \text{est}^C_i,\; 0\right)$$
 
-Programa iterativo genérico:
+Cuando $\text{cap}^A_{\alpha_i} < \text{est}^C_i$ el término es $0$ (curso con fallo, no suma desperdicio).
+
+**Implementación:**
 
 ```scala
-def Pf(a: A): B = {
-  def Pf_iter(s: Estado): B =
-    if (esFinal(s)) respuesta(s) else Pf_iter(transformar(s))
-  Pf_iter(s0)
-}
+def desperdicio(cursos: Cursos, aulas: Aulas, a: Asignacion): Int =
+  cursos.indices.toVector
+    .filter(i => a(i) >= 0 && capAula(aulas(a(i))) >= estCurso(cursos(i)))
+    .map(i => capAula(aulas(a(i))) - estCurso(cursos(i)))
+    .sum
 ```
+
+**Argumentación:** El `filter` descarta los cursos con fallo (donde el $\max$ sería 0). En el subconjunto restante la diferencia siempre es no negativa, por lo que `map` + `sum` calcula exactamente la especificación. ✓
 
 ---
 
-#### Ejemplo: Factorial Iterativo
+### `movilidad`
+
+**Especificación:**
+
+$$\text{MV}^\alpha_{C,A,D} = \sum_{j=0}^{k-2} D\!\left[\alpha_{\sigma_j},\, \alpha_{\sigma_{j+1}}\right]$$
+
+donde $\sigma$ es la permutación que ordena los cursos asignados por hora de inicio.
+
+**Implementación:**
 
 ```scala
-def Pf(n: Int): Int = {
-  def Pf_iter(i: Int, n: Int, ac: Int): Int =
-    if (i > n) ac else Pf_iter(i + 1, n, i * ac)
-  Pf_iter(1, n, 1)
+def movilidad(cursos: Cursos, aulas: Aulas, d: Distancias,
+              a: Asignacion): Int = {
+  val ordenados = cursos.indices.toVector
+    .filter(i => a(i) >= 0)
+    .sortBy(i => iniCurso(cursos(i)))
+  if (ordenados.length < 2) 0
+  else
+    ordenados.zip(ordenados.tail)
+      .map { case (i, j) => d(a(i))(a(j)) }
+      .sum
 }
 ```
 
-- Estado \$s = (i, n, ac)\$
-- Estado inicial \$s_0 = (1, n, 1)\$
-- Estado final: \$i = n+1\$
-- Invariante: \$\text{Inv}(i,n,ac) \equiv i \leq n+1 \land ac = (i-1)!\$
-- Transformación: \$(i, n, ac) \to (i+1, n, i \cdot ac)\$
+**Argumentación:**
+1. `filter` retiene solo los índices asignados.
+2. `sortBy iniCurso` produce la permutación $\sigma_0, \ldots, \sigma_{k-1}$.
+3. `zip` con `tail` genera los pares $(\sigma_j, \sigma_{j+1})$ para $j = 0, \ldots, k-2$.
+4. `map` + `sum` calcula $\sum D[\alpha_{\sigma_j}][\alpha_{\sigma_{j+1}}]$.
 
-Por inducción sobre la iteración, se demuestra que al llegar a \$s_f\$, \$ac = n!\$.
+Coincide exactamente con la especificación. ✓
 
 ---
 
-#### Ejemplo: El máximo de una lista
+### `costoAsignacion`
+
+**Especificación:**
+
+$$\text{CT}^\alpha = w_{CH} \cdot \text{CH}^\alpha + w_{CF} \cdot \text{CF}^\alpha + w_{DE} \cdot \text{DE}^\alpha + w_{MV} \cdot \text{MV}^\alpha$$
+
+**Implementación:**
 
 ```scala
-def maxIt(l: List[Int]): Int = {
-  def maxAux(max: Int, l: List[Int]): Int = {
-    if (l.isEmpty) max
-    else maxAux(math.max(max, l.head), l.tail)
-  }
-  maxAux(l.head, l.tail)
+def costoAsignacion(cursos: Cursos, aulas: Aulas, d: Distancias,
+                    a: Asignacion, w: Pesos): Int = {
+  val (wCH, wCF, wDE, wMV) = w
+  wCH * choques(cursos, a) +
+  wCF * capacidadFallida(cursos, aulas, a) +
+  wDE * desperdicio(cursos, aulas, a) +
+  wMV * movilidad(cursos, aulas, d, a)
 }
 ```
 
-- Estado \$s = (max, l)\$
-- Estado inicial \$s_0 = (a_1, \text{List}(a_2, \ldots, a_k))\$
-- Estado final: \$l = \text{List}()\$
-- Invariante: \$\text{Inv}(max, l) \equiv max = f(\text{prefijo})\$
-- Transformación: \$(max, l) \to (\text{math.max}(max, l.head), l.tail)\$
+**Argumentación:** La función es una combinación lineal directa de las cuatro funciones anteriores (todas correctas). La corrección se reduce a la aritmética de enteros de Scala. ✓
 
-Por inducción, al llegar al estado final, \$max = f(L)\$.
+---
 
-**Conclusión**:
+### `generarAsignaciones`
 
-$$
-P_f(L) == f(L)
-$$
+**Especificación:**
+
+$$\text{gen}(n, m) = \left\{ \alpha \in \{0,\ldots,m-1\}^n \right\}$$
+
+**Implementación:**
+
+```scala
+def generarAsignaciones(n: Int, m: Int): Vector[Asignacion] =
+  if (n == 0) Vector(Vector.empty)
+  else
+    generarAsignaciones(n - 1, m).flatMap(asig =>
+      (0 until m).toVector.map(j => asig :+ j)
+    )
+```
+
+**Prueba por inducción estructural sobre $n$:**
+
+Sea $P(n)$: `generarAsignaciones(n, m)` devuelve exactamente todos los vectores de longitud $n$ sobre $\{0,\ldots,m-1\}$.
+
+- **Caso base** $n = 0$:
+
+$$P_f(0) \to \texttt{Vector(Vector.empty)}$$
+
+El único elemento de $\{0,\ldots,m-1\}^0$ es el vector vacío. Por tanto $P(0)$ es verdadero. ✓
+
+- **Caso inductivo** $n = k+1$, hipótesis $P(k)$:
+
+$$P_f(k+1) \to \text{gen}(k, m).\text{flatMap}\!\left(\text{asig} \mapsto \{0,\ldots,m{-}1\}.\text{map}(j \mapsto \text{asig} \mathrel{:+} j)\right)$$
+
+Por $P(k)$, `gen(k, m)` contiene todos los vectores de longitud $k$. Para cada uno de ellos se generan $m$ extensiones añadiendo cada $j \in \{0,\ldots,m-1\}$. El resultado es exactamente $\{0,\ldots,m-1\}^{k+1}$. Por tanto $P(k+1)$ es verdadero. ✓
+
+**Conclusión:** $\forall n \geq 0 : P(n)$. ✓
+
+---
+
+### `asignacionOptima`
+
+**Especificación:**
+
+$$\alpha^* = \arg\min_{\alpha \in \{0,\ldots,m-1\}^n} \text{CT}^\alpha$$
+
+**Implementación:**
+
+```scala
+def asignacionOptima(cursos: Cursos, aulas: Aulas, d: Distancias,
+                     w: Pesos): (Asignacion, Int) =
+  generarAsignaciones(cursos.length, aulas.length)
+    .map(a => (a, costoAsignacion(cursos, aulas, d, a, w)))
+    .minBy(_._2)
+```
+
+**Argumentación:** Por la corrección de `generarAsignaciones`, el vector de candidatas contiene **todas** las asignaciones en $\{0,\ldots,m-1\}^n$. Por la corrección de `costoAsignacion`, cada tupla $(a, \text{CT})$ tiene el costo correcto. `minBy(_._2)` selecciona la tupla con menor costo, que es por exhaustividad la asignación óptima global. ✓
+
+---
+
+## Casos de prueba
+
+Los casos de prueba se encuentran en:
+
+- `src/test/scala/proyecto/AsignacionAulasTest.scala` — funciones secuenciales (≥ 5 casos por función).
+- `src/test/scala/proyecto/AsignacionAulasParTest.scala` — funciones paralelas (≥ 5 casos por función).
+
+Se ejecutan automáticamente con:
+
+```bash
+./gradlew test
+```
+
+El reporte se genera en `app/build/reports/tests/test/index.html`.
